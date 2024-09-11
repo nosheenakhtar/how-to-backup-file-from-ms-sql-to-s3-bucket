@@ -1,0 +1,22 @@
+Set-AWSCredentials myAWSCredentials
+
+$server = 'name of server'
+$backupPath = 'path-to-file-backup'
+$s3bucket = 's3-url'
+$region = 'se-bucket-region' 
+
+$databases = Invoke-Sqlcmd -ServerInstance $server -Query "SELECT [name] FROM master.dbo.sysdatabases WHERE [name] = 'backupfilename'"
+Remove-Item "${backupPath}\Dev-Mavenx_*.bak" -Force
+foreach ($database in $databases) {
+    $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $fileName = "$($database.name)_$timestamp.bak"
+   
+    $filePath = Join-Path $backupPath $fileName
+    
+
+    Backup-SqlDatabase -ServerInstance $server -Database $database.name -BackupFile $filePath -CompressionOption On -Checksum
+    
+    Write-S3Object -BucketName $s3bucket -File $filePath -Key $fileName -Region $region  
+    
+}
+
